@@ -143,6 +143,11 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
+        /* Kelas untuk menahan tinggi output agar tidak bergeser */
+        .fixed-min-height {
+            min-height: 500px; /* Menjaga agar elemen output memiliki tinggi minimum */
+        }
+
         .module-content h2 {
             font-size: 1.5rem;
             font-weight: 700;
@@ -179,29 +184,9 @@
         .module-content li {
             margin-bottom: 0.5rem;
         }
+        
+        /* Menghapus loading-indicator karena diganti dengan teks dinamis */
 
-
-        .loading-indicator {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-top: 2rem;
-            color: var(--primary-blue);
-        }
-
-        .spinner {
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top: 4px solid var(--primary-blue);
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -362,7 +347,8 @@
             </div>
 
             <!-- Panel Output (Right/Bottom) -->
-            <div class="lg:col-span-2 output-section min-h-[600px]">
+            <!-- Tambahkan fixed-min-height untuk mencegah pergeseran layout saat loading/typing -->
+            <div class="lg:col-span-2 output-section min-h-[600px] fixed-min-height">
                 <h2 class="text-2xl font-bold text-center mb-6 text-white/90">Hasil Modul Ajar</h2>
                 <div id="module-output" class="module-content">
                     <div class="text-center text-white/70">
@@ -370,12 +356,8 @@
                         <p>Silakan isi parameter di sebelah kiri dan klik "Buat Modul Ajar AI" untuk menghasilkan draf modul ajar Anda.</p>
                     </div>
                 </div>
-                <div id="loading-indicator" class="loading-indicator hidden">
-                    <div class="spinner"></div>
-                    <span class="ml-3 text-lg font-medium">AI sedang menyusun modul...</span>
-                </div>
+                <!-- Hapus loading-indicator karena diganti dengan teks dinamis di module-output -->
 
-                <!-- Log Proses Penyusunan Dihapus Sesuai Permintaan -->
             </div>
         </div>
     </div>
@@ -447,10 +429,12 @@
         const mapelEl = document.getElementById('mata-pelajaran');
         const generateButton = document.getElementById('generate-button');
         const moduleOutput = document.getElementById('module-output');
-        const loadingIndicator = document.getElementById('loading-indicator');
         const statusMessage = document.getElementById('status-message');
         const exportPdfButton = document.getElementById('export-pdf-button');
         const exportDocsButton = document.getElementById('export-docs-button');
+        
+        // Variabel untuk mengontrol efek komposisi
+        let composingInterval = null;
 
         // --- Utility Functions ---
 
@@ -466,14 +450,52 @@
             mapelEl.innerHTML = data.mapel.map(m => `<option value="${m}">${m}</option>`).join('');
         }
         
+        /** Menampilkan pesan dinamis saat AI sedang menyusun kerangka (pre-typing). */
+        function startComposingEffect() {
+            stopComposingEffect(); // Pastikan tidak ada interval yang berjalan
+            
+            // Mengatur konten agar tetap di tengah dan stabil
+            moduleOutput.innerHTML = `
+                <div class="text-center text-white/70 flex flex-col items-center">
+                    <svg class="animate-spin h-8 w-8 text-blue-400 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="italic text-lg text-blue-300" id="composing-text"></p>
+                </div>
+            `;
+            const composingTextEl = document.getElementById('composing-text');
+            const composingMessage = "AI sedang menyusun kerangka modul... Mohon tunggu.";
+            let dotCount = 0;
+            
+            composingInterval = setInterval(() => {
+                let dots = '.'.repeat(dotCount % 4);
+                composingTextEl.textContent = composingMessage + dots;
+                dotCount++;
+            }, 400); 
+        }
+
+        /** Menghentikan pesan dinamis. */
+        function stopComposingEffect() {
+            if (composingInterval) {
+                clearInterval(composingInterval);
+                composingInterval = null;
+            }
+        }
+
+
         /** Simulates the text generation process by displaying content word-by-word. */
         function typewriterEffect(targetElement, htmlContent) {
-            targetElement.innerHTML = ''; // Clear content
+            targetElement.innerHTML = ''; // Clear content for the final type
             // Split the HTML content by words, but keep the spaces and HTML tags intact using regex grouping
             const words = htmlContent.split(/(\s+|<[^>]+>)/g).filter(Boolean); 
             let i = 0;
+            // Gunakan container output untuk scrolling
+            const outputContainer = document.querySelector('.output-section'); 
+            
             const scrollInterval = setInterval(() => {
-                targetElement.scrollTop = targetElement.scrollHeight; // Auto-scroll
+                // Scroll container ke bawah saat konten bertambah
+                outputContainer.scrollTop = outputContainer.scrollHeight; 
             }, 50);
 
             return new Promise(resolve => {
@@ -519,13 +541,14 @@
                 return;
             }
 
-            // Prepare UI state for API call
+            // 1. Initial UI state & Start Composing Effect
             generateButton.disabled = true;
             exportPdfButton.disabled = true;
             exportDocsButton.disabled = true;
-            loadingIndicator.classList.remove('hidden');
-            moduleOutput.innerHTML = '';
-            statusMessage.textContent = 'AI sedang menyusun modul ajar secara profesional...';
+            
+            startComposingEffect(); // Memulai efek dinamis
+            
+            statusMessage.textContent = 'Menganalisis parameter dan meminta model AI...';
             statusMessage.className = 'mt-4 text-center text-sm font-semibold text-blue-400';
             
             let successfulFetch = false;
@@ -619,6 +642,9 @@
                     }
                 }
             }
+            
+            // 2. Stop Composing Effect
+            stopComposingEffect(); 
 
             // --- Post-Generation Processing ---
             
@@ -632,48 +658,39 @@
                 .replace(/^<p>/, '')
                 .replace(/<\/p>$/, '');
                 
-            // Handle lists (simple conversion for display)
-            // Replace standalone <br> after list items with proper list structure
-            htmlContent = htmlContent.replace(/<br>\* /g, '<ul><li>') // Start of first list item
-                                      .replace(/\* (.*?)(<br>|$)/g, '<li>$1</li>') // subsequent items
-                                      .replace(/<\/li><br>/g, '</li>'); // cleanup
-            
-            // Basic list reconstruction (imperfect but better than nothing)
+            // List reconstruction (basic)
             const lines = htmlContent.split('<br>');
             let finalHtml = '';
             let inList = false;
+            let listType = '';
             
             lines.forEach(line => {
                 const trimmedLine = line.trim();
-                // Check if it looks like a list item (li tags or starting with -)
-                if (trimmedLine.startsWith('<li>') || trimmedLine.startsWith('<ol><li>') || trimmedLine.startsWith('<ul><li>') || trimmedLine.startsWith('- ')) {
-                    const isListItem = trimmedLine.startsWith('<li>') || trimmedLine.startsWith('- ');
-                    const isOrdered = trimmedLine.match(/^\d+\./);
+                const isOrdered = trimmedLine.match(/^\d+\./);
+                const isUnordered = trimmedLine.startsWith('- ') || trimmedLine.startsWith('<li>');
 
-                    if (isListItem || isOrdered) {
-                         if (!inList) {
-                            inList = isOrdered ? '<ol>' : '<ul>';
-                            finalHtml += inList;
-                        }
-                        // Simple cleaning before appending to list
-                        let listItemText = trimmedLine.replace(/^- /, '<li>').replace(/<\/?ul>|<\/?ol>|<li>|<\/li>/g, '').trim();
-
-                        // If it's a paragraph from previous replacements, remove it
-                        if (listItemText.startsWith('<p>') && listItemText.endsWith('</p>')) {
-                            listItemText = listItemText.slice(3, -4);
-                        }
-
-                        // Re-add <li> tag if it was removed in previous step (imperfect cleanup)
-                        if (!listItemText.startsWith('<li>')) {
-                           listItemText = `<li>${listItemText}</li>`;
-                        }
-
-                        finalHtml += listItemText;
+                if (isOrdered || isUnordered) {
+                    const currentType = isOrdered ? 'ol' : 'ul';
+                    
+                    if (!inList) {
+                        listType = currentType;
+                        finalHtml += `<${listType}>`;
+                        inList = true;
+                    } else if (inList && listType !== currentType) {
+                        // Close previous list if type changes
+                        finalHtml += `</${listType}><${currentType}>`;
+                        listType = currentType;
                     }
+                    
+                    // Cleanup list item content
+                    let listItemText = trimmedLine.replace(/^- /, '').replace(/^\d+\. /, '').replace(/<\/?ul>|<\/?ol>|<li>|<\/li>|<\/?p>/g, '').trim();
+                    finalHtml += `<li>${listItemText}</li>`;
+
                 } else {
                     if (inList) {
-                        finalHtml += (inList === '<ol>' ? '</ol>' : '</ul>');
+                        finalHtml += `</${listType}>`;
                         inList = false;
+                        listType = '';
                     }
                     if (trimmedLine.length > 0) {
                         // Ensure paragraphs are wrapped
@@ -682,25 +699,22 @@
                 }
             });
 
-            // Final list cleanup
+            // Close any remaining list tag
             if (inList) {
-                finalHtml += (inList === '<ol>' ? '</ol>' : '</ul>');
+                finalHtml += `</${listType}>`;
             }
             finalHtml = finalHtml.replace(/<p><\/p>/g, '');
             
-
             // --- Final UI Update ---
 
             if (successfulFetch) {
-                // 1. Hide the spinner
-                loadingIndicator.classList.add('hidden');
-                // PERUBAHAN DI SINI: Status message yang lebih jelas saat mengetik
+                // Status message yang lebih jelas saat mengetik
                 statusMessage.textContent = 'AI sedang menuliskan modul ajar di layar Anda...';
 
-                // 2. Start the typing effect on the generated HTML content
+                // 3. Start the typing effect on the generated HTML content
                 await typewriterEffect(moduleOutput, finalHtml);
 
-                // 3. Finalize UI after typing is complete
+                // 4. Finalize UI after typing is complete
                 generateButton.disabled = false;
                 exportPdfButton.disabled = false;
                 exportDocsButton.disabled = false;
@@ -708,7 +722,6 @@
                 statusMessage.className = 'mt-4 text-center text-sm font-semibold text-green-400';
             } else {
                 // Handle failure immediately
-                loadingIndicator.classList.add('hidden');
                 generateButton.disabled = false;
                 exportPdfButton.disabled = true;
                 exportDocsButton.disabled = true;
