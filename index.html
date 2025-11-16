@@ -554,48 +554,94 @@
             let successfulFetch = false;
             let lastResponseText = '';
 
+            // PERUBAHAN PROMPT: Mengikuti struktur template PDF yang diunggah
             const userPrompt = `
-                Buatkan kerangka Modul Ajar profesional dalam format Markdown berdasarkan data berikut:
-                - Penyusun: ${penyusun}
-                - Jenjang/Kelas: ${jenjang} / Kelas ${tingkatan}
-                - Mata Pelajaran: ${mapel}
-                - Model Pembelajaran: ${model}
-                - Metode Pembelajaran: ${metode}
-                - Dimensi Profil Pelajar Pancasila: ${selectedProfil}
-                - Capaian Pembelajaran (CP): ${cp}
-                - Materi Utama Tambahan (jika ada): ${materiManual || 'Tidak ada'}
-
-                Struktur Modul Ajar yang harus disusun meliputi:
-                1. Identitas (Nama Penyusun, Sekolah, Tahun, Jenjang, Kelas, Mapel, Alokasi Waktu)
-                2. Kompetensi Awal (Berdasarkan CP/Materi)
-                3. Dimensi Profil Pelajar Pancasila
-                4. Sarana dan Prasarana
-                5. Target Peserta Didik (Reguler, Kesulitan Belajar, Pencapaian Tinggi)
-                6. Lintas Disiplin Ilmu
-                7. Praktik Pedagogis (Strategi/teknik spesifik yang digunakan)
-                8. Kompetensi Inti:
-                    a. Tujuan Pembelajaran (sesuai CP)
-                    b. Asesmen (Diagnostik, Formatif, Sumatif - jelaskan instrumennya)
-                    c. Pemahaman Bermakna
-                    d. Pertanyaan Pemantik
-                    e. Pendahuluan (Kegiatan Pembuka)
-                    f. Kegiatan Inti (Detail langkah-langkah sesuai model pembelajaran)
-                    g. Kegiatan Penutup (Ringkasan dan tindak lanjut)
-                9. Refleksi:
-                    a. Refleksi Guru
-                    b. Refleksi Siswa
-                10. Pengayaan dan Remedial
-                11. Rubrik Penilaian (Contoh sederhana)
-                12. Glosarium (5 istilah kunci)
-                13. Daftar Pustaka (Minimal 3 sumber fiktif yang relevan)
-                    14. Lampiran:
-                    a. LKPD (Lembar Kerja Peserta Didik - jelaskan isinya)
-                    b. Bahan Bacaan Siswa (jelaskan isinya)
+                Buatkan kerangka Modul Ajar profesional dalam format Markdown yang KETAT mengikuti struktur berikut:
                 
-                Tulis semua output dalam Bahasa Indonesia, menggunakan tag Markdown untuk judul dan paragraf. Gunakan heading level 2 (##) untuk bagian utama dan heading level 3 (###) untuk sub-bagian.
+                # MODUL AJAR (Tuliskan Topik Pembelajaran yang Sesuai)
+                
+                ## A. INFORMASI UMUM
+                | Komponen | Deskripsi |
+                |---|---|
+                | Nama Penyusun | ${penyusun} |
+                | Instansi | [Nama Sekolah Fiktif] |
+                | Fase/Kelas | [Fase yang Sesuai] / Kelas ${tingkatan} |
+                | Tahun Pelajaran | 2024/2025 |
+                | Semester | Ganjil |
+                | Mata Pelajaran | ${mapel} |
+                | Topik Pembelajaran | [Buatkan Topik Pembelajaran yang Relevan dengan CP] ${materiManual ? `(Materi Utama: ${materiManual})` : ''} |
+                | Alokasi Waktu | 4 x 45 Menit |
+                | Jumlah Pertemuan | 2 Pertemuan |
+                | Model Pembelajaran | ${model} |
+                | Metode Pembelajaran | ${metode} |
+                | Karakteristik Peserta Didik | Reguler/Tipikal |
+                | Dimensi Profil Lulusan (DPL) | ${selectedProfil} |
+                | Mitra Pembelajaran | Teman Sebaya (Diskusi Kelompok) |
+                | Lingkungan Pembelajaran | Ruang Kelas dan Perpustakaan |
+                | Pemanfaatan Digital | Proyektor, Laptop, Internet |
+                
+                ## B. KOMPONEN INTI
+                
+                ### Capaian Pembelajaran (CP)
+                ${cp}
+                
+                ### Tujuan Pembelajaran
+                [Buatkan 3-4 Tujuan Pembelajaran yang spesifik, terukur, dan sesuai dengan CP di atas.]
+                
+                ### Kegiatan Pembelajaran
+                
+                #### Kegiatan Awal (Alokasi Waktu: 15 Menit)
+                * [Tuliskan prinsip pembelajaran yang digunakan, misal: Bermakna, Menggembirakan, dan Berkesadaran]
+                * [Langkah-langkah Kegiatan Pembuka: Doa, Cek Kehadiran, Apersepsi, Motivasi]
+                * [Sampaikan Pertanyaan Pemantik yang relevan.]
+                
+                #### Kegiatan Inti (Sintak Model Pembelajaran: ${model}) (Alokasi Waktu: 60 Menit)
+                
+                * **Memahami** (Tuliskan prinsip pembelajaran yang digunakan, misal: Mandiri, Aktif)
+                    1.  [Langkah 1 sesuai sintak model: Misalnya, stimulasi masalah]
+                    2.  [Langkah 2]
+                
+                * **Mengaplikasikan** (Tuliskan prinsip pembelajaran yang digunakan, misal: Kolaboratif, Relevan)
+                    1.  [Langkah 3 sesuai sintak model: Misalnya, pengumpulan data/percobaan]
+                    2.  [Langkah 4]
+                
+                * **Merefleksikan** (Tuliskan prinsip pembelajaran yang digunakan, misal: Kritis, Reflektif)
+                    1.  [Langkah 5 sesuai sintak model: Misalnya, pembuktian/presentasi]
+                    2.  [Langkah 6]
+                
+                #### Kegiatan Penutup (Alokasi Waktu: 15 Menit)
+                * [Tuliskan prinsip pembelajaran yang digunakan, misal: Bermakna, Berkesadaran]
+                * [Langkah-langkah Kegiatan Penutup: Menyimpulkan, Refleksi Siswa, Tindak Lanjut/PR]
+                
+                ### Asesmen
+                * **Asesmen pada Awal Pembelajaran:** [Kuis singkat pengetahuan awal tentang materi Topik Pembelajaran]
+                * **Asesmen pada Proses Pembelajaran:** [Observasi selama diskusi, Unjuk Kerja Kelompok]
+                * **Asesmen pada Akhir Pembelajaran:** [Tes Tulis/Esai tentang Capaian Pembelajaran]
+                
+                ### Pengayaan dan Remedial
+                * **Pengayaan:** [Aktivitas untuk siswa dengan pencapaian tinggi]
+                * **Remedial:** [Aktivitas penguatan materi untuk siswa yang belum mencapai tujuan]
+
+                
+                ## C. LAMPIRAN
+                
+                ### Bahan Ajar
+                [Jelaskan secara ringkas isi bahan ajar (contohnya: Teks, Infografis, Video Pembelajaran)]
+                
+                ### LKPD (Lembar Kerja Peserta Didik)
+                [Jelaskan secara ringkas isi LKPD (contohnya: Lembar kerja pengamatan dan analisis kasus)]
+                
+                ### Media Pembelajaran
+                [Sebutkan media spesifik yang digunakan (contohnya: Papan tulis, Kartu soal, Proyektor)]
+                
+                ### Rubrik Penilaian
+                [Berikan contoh Rubrik Penilaian Sederhana untuk Asesmen Proses (Unjuk Kerja/Proyek)]
+                
+                ### Daftar Pustaka
+                [Sebutkan minimal 3 sumber fiktif yang relevan, mengikuti format penulisan daftar pustaka]
             `;
 
-            const systemPrompt = "Anda adalah Asisten AI kurikulum yang sangat profesional, ahli dalam menyusun Modul Ajar Kurikulum Merdeka yang lengkap, terstruktur, dan sesuai dengan kaidah pedagogi modern. Berikan output hanya dalam format Markdown yang diminta.";
+            const systemPrompt = "Anda adalah Asisten AI kurikulum yang sangat profesional, ahli dalam menyusun Modul Ajar Kurikulum Merdeka yang lengkap, terstruktur, dan formal, sesuai dengan struktur template yang diminta (A. INFORMASI UMUM, B. KOMPONEN INTI, C. LAMPIRAN). Berikan output hanya dalam format Markdown yang diminta.";
             // API Key Placeholder
             const apiKey = "AIzaSyC5GTgrykz8WZvdpVyioQcih-k8n71yiPE"; 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
@@ -649,62 +695,97 @@
             // --- Post-Generation Processing ---
             
             // Simple Markdown to HTML conversion for display
-            let htmlContent = lastResponseText
+            let htmlContent = lastResponseText;
+            
+            // 1. Handle Markdown Tables (for A. INFORMASI UMUM)
+            const tableRegex = /\|(.*)\|/g;
+            let tableHtml = '';
+            let isInsideTable = false;
+            
+            const lines = htmlContent.split('\n');
+            htmlContent = lines.map(line => {
+                if (line.trim().startsWith('|') && line.includes('|')) {
+                    if (!isInsideTable) {
+                        isInsideTable = true;
+                        // Start of the table (assuming it's a two-column list table)
+                        return '<table class="w-full text-left text-sm text-white/90 border border-white/10 rounded-lg overflow-hidden my-4"><tbody>' + line.replace(/\|/g, '<th>');
+                    }
+                    
+                    if (line.includes('---')) {
+                        // Separator line (ignore)
+                        return '';
+                    }
+
+                    // Data row
+                    let cells = line.split('|').filter(cell => cell.trim().length > 0);
+                    if (cells.length >= 2) {
+                        return `<tr><td class="px-4 py-2 font-medium bg-white/5 w-1/3">${cells[0].trim()}</td><td class="px-4 py-2">${cells[1].trim()}</td></tr>`;
+                    }
+                    return '';
+
+                } else {
+                    if (isInsideTable) {
+                        isInsideTable = false;
+                        return '</tbody></table>' + line;
+                    }
+                    return line;
+                }
+            }).join('\n');
+            
+            // 2. Standard Markdown to HTML Conversion
+            htmlContent = htmlContent
+                .replace(/^# (.*)$/gm, '<h1 class="text-3xl font-extrabold text-center mb-6 text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-red-300">$&</h1>')
                 .replace(/^## (.*)$/gm, '<h2 class="text-xl md:text-2xl font-extrabold mt-8 pt-4 border-t border-white/10 text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-red-300">$&</h2>')
-                .replace(/^### (.*)$/gm, '<h3 class="text-lg md:text-xl font-semibold mt-4 text-blue-200">$&</h3>')
+                .replace(/^### (.*)$/gm, '<h3 class="text-lg md:text-xl font-semibold mt-4 text-red-200">$&</h3>')
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\n\n/g, '</p><p>')
                 .replace(/\n/g, '<br>')
                 .replace(/^<p>/, '')
                 .replace(/<\/p>$/, '');
-                
-            // List reconstruction (basic)
-            const lines = htmlContent.split('<br>');
-            let finalHtml = '';
-            let inList = false;
-            let listType = '';
             
-            lines.forEach(line => {
-                const trimmedLine = line.trim();
-                const isOrdered = trimmedLine.match(/^\d+\./);
-                const isUnordered = trimmedLine.startsWith('- ') || trimmedLine.startsWith('<li>');
+            // 3. List Reconstruction (improved for Markdown lists)
+            const listPattern = /(\*|\d+\.) (.*?)($|<br>)/g;
+            let listCount = 0;
+            let isPreviousLineList = false;
+            
+            // Pre-clean: replace <br> after a list item marker with a space for parsing
+            htmlContent = htmlContent.replace(/<br>(\*|\d+\.)/g, ' $1'); 
 
-                if (isOrdered || isUnordered) {
-                    const currentType = isOrdered ? 'ol' : 'ul';
-                    
-                    if (!inList) {
-                        listType = currentType;
-                        finalHtml += `<${listType}>`;
-                        inList = true;
-                    } else if (inList && listType !== currentType) {
-                        // Close previous list if type changes
-                        finalHtml += `</${listType}><${currentType}>`;
-                        listType = currentType;
-                    }
-                    
-                    // Cleanup list item content
-                    let listItemText = trimmedLine.replace(/^- /, '').replace(/^\d+\. /, '').replace(/<\/?ul>|<\/?ol>|<li>|<\/li>|<\/?p>/g, '').trim();
-                    finalHtml += `<li>${listItemText}</li>`;
-
-                } else {
-                    if (inList) {
-                        finalHtml += `</${listType}>`;
-                        inList = false;
-                        listType = '';
-                    }
-                    if (trimmedLine.length > 0) {
-                        // Ensure paragraphs are wrapped
-                        finalHtml += trimmedLine.startsWith('<p>') ? trimmedLine : `<p>${trimmedLine}</p>`;
+            finalHtml = htmlContent.replace(listPattern, (match, marker, content, end) => {
+                const isOrdered = marker.match(/^\d+\./);
+                const listTag = isOrdered ? 'ol' : 'ul';
+                
+                let result = '';
+                if (!isPreviousLineList) {
+                    result += `<${listTag}>`;
+                }
+                
+                result += `<li>${content}</li>`;
+                
+                // Check the next match to decide whether to close the list
+                const nextMatch = listPattern.exec(htmlContent);
+                listPattern.lastIndex = listPattern.lastIndex - match.length; // Reset index for current match logic
+                
+                if (!nextMatch || (nextMatch && nextMatch[1] !== marker)) {
+                    // Check if the next item is not a list item, or if the list type changes
+                    listPattern.lastIndex = listPattern.lastIndex + match.length; // Advance index back
+                    if (!nextMatch || nextMatch[1] !== marker) {
+                         listPattern.lastIndex = listPattern.lastIndex - match.length;
+                         isPreviousLineList = false;
+                         return result + `</${listTag}>`;
                     }
                 }
+                
+                isPreviousLineList = true;
+                return result;
             });
-
-            // Close any remaining list tag
-            if (inList) {
-                finalHtml += `</${listType}>`;
-            }
-            finalHtml = finalHtml.replace(/<p><\/p>/g, '');
             
+            // Final cleanup for paragraphs wrapping lists
+            finalHtml = finalHtml.replace(/<p>(\s*<ul|<p>(\s*<ol))/g, '$1')
+                                 .replace(/(<\/ul>\s*)<\/p>/g, '$1')
+                                 .replace(/(<\/ol>\s*)<\/p>/g, '$1')
+                                 .replace(/<br>/g, ''); // Remove all remaining <br> tags
+
             // --- Final UI Update ---
 
             if (successfulFetch) {
