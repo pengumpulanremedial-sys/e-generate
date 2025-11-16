@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Modul Ajar Generator Profesional</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Load Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase configuration and initialization (MANDATORY for Canvas environment)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app, db, auth;
+
+        if (firebaseConfig) {
+            try {
+                // setLogLevel('Debug');
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                window.firebaseApp = app;
+                window.firestoreDb = db;
+                window.firebaseAuth = auth;
+
+                // Sign in logic
+                const attemptAuth = async () => {
+                    try {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Firebase Auth Error:", error);
+                    }
+                };
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        console.log("User signed in:", user.uid);
+                        window.currentUserId = user.uid;
+                    } else {
+                        console.log("User signed out / anonymous.");
+                    }
+                    window.isAuthReady = true;
+                });
+
+                attemptAuth();
+
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+            }
+        }
+    </script>
+    <style>
+        /* Menggunakan font Inter dari Google Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        
+        :root {
+            --primary-blue: #3b82f6;
+            --secondary-red: #ef4444;
+            --text-white: #ffffff;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Latar Belakang Gradien Hitam */
+            background: linear-gradient(135deg, #1f2937 0%, #000000 100%);
+            min-height: 100vh;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .custom-select, .custom-input, .custom-textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.5rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--text-white);
+            transition: all 0.3s ease;
+            /* BARU: Mengatur warna aksen untuk elemen formulir ke biru */
+            accent-color: var(--primary-blue); 
+        }
+
+        .custom-select:focus, .custom-input:focus, .custom-textarea:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+        }
+        
+        /* Gaya Tombol Gradien */
+        .btn-primary {
+            background: linear-gradient(90deg, #3b82f6, #60a5fa); /* Blue gradient */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-export {
+            background: linear-gradient(90deg, #ef4444, #f87171); /* Red gradient */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-export:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.4);
+        }
+
+        .output-section {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
+            padding: 2rem;
+            color: var(--text-white);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .module-content h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 2rem;
+            margin-bottom: 0.75rem;
+            color: #60a5fa; /* Blue accent */
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 0.5rem;
+        }
+        
+        .module-content h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            color: #f87171; /* Red accent */
+        }
+        
+        .module-content p, .module-content ul, .module-content li {
+            line-height: 1.6;
+            margin-bottom: 1rem;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .loading-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 2rem;
+            color: var(--primary-blue);
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid var(--primary-blue);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .step-log p {
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            font-family: monospace;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div id="app" class="max-w-7xl mx-auto">
+        <h1 class="text-3xl md:text-4xl font-extrabold text-center mb-10 text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-300 to-red-400">
+            AI Modul Ajar Generator Profesional
+        </h1>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Panel Input (Left/Top) -->
+            <div class="lg:col-span-1 p-6 bg-white/5 backdrop-blur-sm rounded-xl shadow-2xl h-fit sticky top-8" id="input-panel">
+                <h2 class="text-xl font-bold mb-4 text-white">Parameter Modul Ajar</h2>
+                
+                <!-- 1. Tombol Input Nama Penyusun -->
+                <div class="input-group">
+                    <label for="penyusun" class="block text-sm font-medium mb-1 text-white/80 flex items-center">
+                        <i data-lucide="user" class="w-4 h-4 mr-2 text-blue-400"></i> Nama Penyusun
+                    </label>
+                    <input type="text" id="penyusun" class="custom-input" placeholder="Nama Guru Profesional" value="Guru Contoh A" />
+                </div>
+                
+                <!-- 2. Tombol Pilihan Jenjang -->
+                <div class="input-group">
+                    <label for="jenjang" class="block text-sm font-medium mb-1 text-white/80 flex items-center">
+                         <i data-lucide="graduation-cap" class="w-4 h-4 mr-2 text-blue-400"></i> Jenjang Pendidikan
+                    </label>
+                    <select id="jenjang" class="custom-select">
+                        <option value="SD/MI">SD/MI</option>
+                        <option value="SMP/MTS">SMP/MTS</option>
+                        <option value="SMA/SMK/SMAN">SMA/SMK/SMAN</option>
+                    </select>
+                </div>
+
+                <!-- 3. Tombol Pilihan Tingkatan -->
+                <div class="input-group">
+                    <label for="tingkatan" class="block text-sm font-medium mb-1 text-white/80 flex items-center">
+                        <i data-lucide="list-ordered" class="w-4 h-4 mr-2 text-blue-400"></i> Tingkatan/Kelas
+                    </label>
+                    <select id="tingkatan" class="custom-select">
+                        <!-- Options generated by JS -->
+                    </select>
+                </div>
+                
+                <!-- 8. Tombol Pilihan Mata Pelajaran -->
+                <div class="input-group">
+                    <label for="mata-pelajaran" class="block text-sm font-medium mb-1 text-white/80 flex items-center">
+                        <i data-lucide="book-open" class="w-4 h-4 mr-2 text-blue-400"></i> Mata Pelajaran
+                    </label>
+                    <select id="mata-pelajaran" class="custom-select">
+                        <!-- Options generated by JS -->
+                    </select>
+                </div>
+
+                <!-- 4. Tombol Pilihan Model Pembelajaran -->
+                <div class="input-group">
+                    <label for="model-pembelajaran" class="block text-sm font-medium mb-1 text-white/80 flex items-center">
+                        <i data-lucide="brain" class="w-4 h-4 mr-2 text-blue-400"></i> Model Pembelajaran
+                    </label>
+                    <select id="model-pembelajaran" class="custom-select">
+                        <option value="Discovery Learning">Discovery Learning</option>
+                        <option value="Project Based Learning (PjBL)">Project Based Learning (PjBL)</option>
+                        <option value="Problem Based Learning (PBL)">Problem Based Learning (PBL)</option>
+                        <option value="Blended Learning">Blended Learning</option>
+                    </select>
+                </div>
+
+                <!-- 5. Tombol Metode Pembelajaran -->
+                <div class="input-group">
+                    <label for="metode-pembelajaran" class="block text-sm font-medium mb-1 text-white/80 flex items-center">
+                        <i data-lucide="message-square-text" class="w-4 h-4 mr-2 text-blue-400"></i> Metode Pembelajaran
+                    </label>
+                    <select id="metode-pembelajaran" class="custom-select">
+                        <option value="Diskusi dan Presentasi">Diskusi dan Presentasi</option>
+                        <option value="Simulasi dan Role Play">Simulasi dan Role Play</option>
+                        <option value="Eksperimen/Praktikum">Eksperimen/Praktikum</option>
+                        <option value="Ceramah dan Tanya Jawab">Ceramah dan Tanya Jawab</option>
+                    </select>
+                </div>
+
+                <!-- 7. Tombol Pilihan Dimensi Profil Lulusan (Checkboxes) -->
+                <div class="input-group">
+                    <label for="profil-lulusan-container" class="block text-sm font-medium mb-1 text-white/80 flex items-center">
+                        <i data-lucide="sparkles" class="w-4 h-4 mr-2 text-blue-400"></i> Dimensi Profil Lulusan
+                    </label>
+                    <!-- Mengganti Select Multiple dengan Checkbox Group -->
+                    <div id="profil-lulusan-container" class="grid grid-cols-1 sm:grid-cols-2 gap-y-2 p-3 custom-select h-auto">
+                        <label class="flex items-center text-sm text-white/90">
+                            <input type="checkbox" name="profil-lulusan" value="Keimanan dan Ketakwaan" class="mr-2 h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded focus:ring-blue-500">
+                            Keimanan dan Ketakwaan
+                        </label>
+                        <label class="flex items-center text-sm text-white/90">
+                            <input type="checkbox" name="profil-lulusan" value="Kewargaan" class="mr-2 h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded focus:ring-blue-500">
+                            Kewargaan
+                        </label>
+                        <label class="flex items-center text-sm text-white/90">
+                            <input type="checkbox" name="profil-lulusan" value="Penalaran Kritis" checked class="mr-2 h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded focus:ring-blue-500">
+                            Penalaran Kritis
+                        </label>
+                        <label class="flex items-center text-sm text-white/90">
+                            <input type="checkbox" name="profil-lulusan" value="Kreativitas" class="mr-2 h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded focus:ring-blue-500">
+                            Kreativitas
+                        </label>
+                        <label class="flex items-center text-sm text-white/90">
+                            <input type="checkbox" name="profil-lulusan" value="Kolaborasi" checked class="mr-2 h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded focus:ring-blue-500">
+                            Kolaborasi
+                        </label>
+                        <label class="flex items-center text-sm text-white/90">
+                            <input type="checkbox" name="profil-lulusan" value="Kemandirian" class="mr-2 h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded focus:ring-blue-500">
+                            Kemandirian
+                        </label>
+                        <label class="flex items-center text-sm text-white/90">
+                            <input type="checkbox" name="profil-lulusan" value="Kesehatan" class="mr-2 h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded focus:ring-blue-500">
+                            Kesehatan
+                        </label>
+                        <label class="flex items-center text-sm text-white/90">
+                            <input type="checkbox" name="profil-lulusan" value="Komunikasi" class="mr-2 h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded focus:ring-blue-500">
+                            Komunikasi
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- 6. Tombol Input Capaian Pembelajaran -->
+                <div class="input-group">
+                    <label for="capaian-pembelajaran" class="block text-sm font-medium mb-1 text-white/80 flex items-center">
+                        <i data-lucide="clipboard-list" class="w-4 h-4 mr-2 text-blue-400"></i> Capaian Pembelajaran (CP)
+                    </label>
+                    <textarea id="capaian-pembelajaran" rows="3" class="custom-textarea" placeholder="Contoh: Peserta didik mampu mengidentifikasi unsur-unsur dan struktur teks prosedur, serta menyusun teks prosedur sederhana."></textarea>
+                </div>
+
+                <!-- 9. Tombol Pilihan Input Materi Manual -->
+                <div class="input-group">
+                    <label for="materi-manual" class="block text-sm font-medium mb-1 text-white/80 flex items-center">
+                        <i data-lucide="pencil-line" class="w-4 h-4 mr-2 text-blue-400"></i> Input Materi Utama (Opsional)
+                    </label>
+                    <textarea id="materi-manual" rows="2" class="custom-textarea" placeholder="Contoh: Teks Prosedur membuat minuman herbal."></textarea>
+                </div>
+                
+                <!-- Tombol Generate dan Export -->
+                <div class="flex flex-col space-y-4 pt-4">
+                    <button id="generate-button" class="btn-primary flex items-center justify-center">
+                        <i data-lucide="wand-2" class="w-5 h-5 mr-2"></i> Buat Modul Ajar AI
+                    </button>
+                    <div class="flex space-x-4">
+                        <!-- 10. Tombol Export ke PDF -->
+                        <button id="export-pdf-button" class="btn-export flex-1 flex items-center justify-center" disabled>
+                            <i data-lucide="file-text" class="w-5 h-5 mr-2"></i> Export PDF
+                        </button>
+                        <!-- 11. Tombol Export ke DOCS -->
+                        <button id="export-docs-button" class="btn-export flex-1 flex items-center justify-center" disabled>
+                            <i data-lucide="file-type-doc" class="w-5 h-5 mr-2"></i> Export DOCS
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Status Message -->
+                <div id="status-message" class="mt-4 text-center text-sm font-semibold text-white"></div>
+            </div>
+
+            <!-- Panel Output (Right/Bottom) -->
+            <div class="lg:col-span-2 output-section min-h-[600px]">
+                <h2 class="text-2xl font-bold text-center mb-6 text-white/90">Hasil Modul Ajar</h2>
+                <div id="module-output" class="module-content">
+                    <div class="text-center text-white/70">
+                        <i data-lucide="clipboard-check" class="w-12 h-12 mx-auto mb-3 text-blue-400"></i>
+                        <p>Silakan isi parameter di sebelah kiri dan klik "Buat Modul Ajar AI" untuk menghasilkan draf modul ajar Anda.</p>
+                    </div>
+                </div>
+                <div id="loading-indicator" class="loading-indicator hidden">
+                    <div class="spinner"></div>
+                    <span class="ml-3 text-lg font-medium">AI sedang menyusun modul...</span>
+                </div>
+
+                <!-- NEW: Area Step-by-Step Generation -->
+                <div class="mt-8 pt-6 border-t border-white/10">
+                    <h3 class="text-xl font-bold mb-4 text-white/90 flex items-center">
+                        <i data-lucide="workflow" class="w-5 h-5 mr-2 text-red-400"></i> Log Proses Penyusunan
+                    </h3>
+                    <div id="step-by-step-output" class="step-log p-4 bg-white/5 rounded-lg text-sm space-y-2 max-h-60 overflow-y-auto">
+                        <p id="step-initial" class="text-white/50 italic">Log proses akan muncul di sini setelah Anda memulai generasi.</p>
+                    </div>
+                </div>
+                <!-- END NEW AREA -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // --- Data Model for Dynamic Selects ---
+        const mapData = {
+            'SD/MI': {
+                tingkatan: [1, 2, 3, 4, 5, 6],
+                mapel: [
+                    'Pendidikan Agama dan Budi Pekerti',
+                    'Pendidikan Pancasila',
+                    'Bahasa Indonesia',
+                    'Matematika',
+                    'IPAS (Ilmu Pengetahuan Alam dan Sosial)', // Mulai kelas 3
+                    'Pendidikan Jasmani Olahraga dan Kesehatan (PJOK)',
+                    'Seni dan Budaya'
+                ]
+            },
+            'SMP/MTS': {
+                tingkatan: [7, 8, 9],
+                mapel: [
+                    'Pendidikan Agama dan Budi Pekerti',
+                    'Pendidikan Pancasila',
+                    'Bahasa Indonesia',
+                    'Matematika',
+                    'Ilmu Pengetahuan Alam (IPA)',
+                    'Ilmu Pengetahuan Sosial (IPS)',
+                    'Bahasa Inggris',
+                    'Pendidikan Jasmani Olahraga dan Kesehatan (PJOK)',
+                    'Informatika',
+                    'Seni dan Budaya',
+                    'Prakarya'
+                ]
+            },
+            'SMA/SMK/SMAN': {
+                tingkatan: [10, 11, 12],
+                mapel: [
+                    // Kelompok Umum Wajib
+                    'Pendidikan Agama dan Budi Pekerti',
+                    'Pendidikan Pancasila',
+                    'Bahasa Indonesia',
+                    'Matematika',
+                    'Bahasa Inggris',
+                    'Sejarah',
+                    'Pendidikan Jasmani Olahraga dan Kesehatan (PJOK)',
+                    'Seni dan Budaya',
+                    // Mata Pelajaran Pilihan (MIPA/IPS/Bahasa/Vokasi)
+                    'Fisika',
+                    'Kimia',
+                    'Biologi',
+                    'Informatika',
+                    'Ekonomi',
+                    'Sosiologi',
+                    'Geografi',
+                    'Antropologi',
+                    'Bahasa dan Sastra Indonesia',
+                    'Bahasa dan Sastra Inggris'
+                ]
+            }
+        };
+
+        // --- DOM Elements ---
+        const jenjangEl = document.getElementById('jenjang');
+        const tingkatanEl = document.getElementById('tingkatan');
+        const mapelEl = document.getElementById('mata-pelajaran');
+        const generateButton = document.getElementById('generate-button');
+        const moduleOutput = document.getElementById('module-output');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const statusMessage = document.getElementById('status-message');
+        const exportPdfButton = document.getElementById('export-pdf-button');
+        const exportDocsButton = document.getElementById('export-docs-button');
+        const stepOutputEl = document.getElementById('step-by-step-output'); // NEW ELEMENT
+
+        // --- Utility Functions ---
+
+        /** Updates the Tingkatan and Mata Pelajaran select boxes based on the selected Jenjang. */
+        function updateSelects() {
+            const selectedJenjang = jenjangEl.value;
+            const data = mapData[selectedJenjang];
+
+            // 1. Update Tingkatan
+            tingkatanEl.innerHTML = data.tingkatan.map(k => `<option value="${k}">${k}</option>`).join('');
+
+            // 2. Update Mata Pelajaran
+            mapelEl.innerHTML = data.mapel.map(m => `<option value="${m}">${m}</option>`).join('');
+        }
+        
+        // NEW FUNCTION: Displays a step in the log
+        function displayStep(stepText, isError = false) {
+            const icon = isError ? '❌' : '✅';
+            const colorClass = isError ? 'text-red-400 bg-red-900/20' : 'text-blue-400 bg-blue-900/20';
+            
+            const newStep = document.createElement('p');
+            newStep.className = `${colorClass} flex items-center transition duration-300`;
+            newStep.innerHTML = `<span class="mr-2 font-bold">${icon}</span> ${stepText}`;
+            stepOutputEl.appendChild(newStep);
+            
+            // Scroll to bottom of log
+            stepOutputEl.scrollTop = stepOutputEl.scrollHeight;
+        }
+
+
+        /** Handles the Gemini API call to generate module content. */
+        async function generateModuleContent() {
+            // Get input values
+            const penyusun = document.getElementById('penyusun').value.trim() || 'Guru Profesional';
+            const jenjang = jenjangEl.value;
+            const tingkatan = tingkatanEl.value;
+            const mapel = mapelEl.value;
+            const model = document.getElementById('model-pembelajaran').value;
+            const metode = document.getElementById('metode-pembelajaran').value;
+            const cp = document.getElementById('capaian-pembelajaran').value.trim();
+            const materiManual = document.getElementById('materi-manual').value.trim();
+            
+            // Get selected profil lulusan
+            const selectedProfilElements = document.querySelectorAll('input[name="profil-lulusan"]:checked');
+            const selectedProfil = Array.from(selectedProfilElements)
+                                      .map(checkbox => checkbox.value)
+                                      .join(', ');
+
+            if (!cp) {
+                statusMessage.textContent = '❗ Capaian Pembelajaran harus diisi.';
+                statusMessage.className = 'mt-4 text-center text-sm font-semibold text-red-400';
+                return;
+            }
+
+            // Prepare for API call
+            generateButton.disabled = true;
+            exportPdfButton.disabled = true;
+            exportDocsButton.disabled = true;
+            loadingIndicator.classList.remove('hidden');
+            moduleOutput.innerHTML = '';
+            statusMessage.textContent = 'Meminta AI untuk menyusun modul ajar...';
+            statusMessage.className = 'mt-4 text-center text-sm font-semibold text-blue-400';
+            
+            stepOutputEl.innerHTML = ''; // Clear previous steps
+            const generationSteps = [
+                "1. Validasi Input dan Parameter Kurikulum...",
+                "2. Merumuskan Tujuan Pembelajaran dan Asesmen Awal...",
+                "3. Mendesain Kerangka Kegiatan Inti (Praktek Pedagogis)...",
+                "4. Menyusun Komponen Pelengkap (Refleksi, Glosarium, Daftar Pustaka)...",
+                "5. Optimasi Struktur Modul Ajar dan Konversi Format...",
+            ];
+            
+            let successfulFetch = false;
+
+            // --- Step-by-Step Simulation and Fetch ---
+            for (let i = 0; i < generationSteps.length; i++) {
+                displayStep(generationSteps[i]);
+                await new Promise(resolve => setTimeout(resolve, 300 + (Math.random() * 500))); // Dynamic delay
+            }
+            
+            displayStep("6. Mengirim permintaan ke Model AI Gemini...", false); // Not an error, but still loading
+            await new Promise(resolve => setTimeout(resolve, 500)); 
+
+
+            const userPrompt = `
+                Buatkan kerangka Modul Ajar profesional dalam format Markdown berdasarkan data berikut:
+                - Penyusun: ${penyusun}
+                - Jenjang/Kelas: ${jenjang} / Kelas ${tingkatan}
+                - Mata Pelajaran: ${mapel}
+                - Model Pembelajaran: ${model}
+                - Metode Pembelajaran: ${metode}
+                - Dimensi Profil Pelajar Pancasila: ${selectedProfil}
+                - Capaian Pembelajaran (CP): ${cp}
+                - Materi Utama Tambahan (jika ada): ${materiManual || 'Tidak ada'}
+
+                Struktur Modul Ajar yang harus disusun meliputi:
+                1. Identitas (Nama Penyusun, Sekolah, Tahun, Jenjang, Kelas, Mapel, Alokasi Waktu)
+                2. Kompetensi Awal (Berdasarkan CP/Materi)
+                3. Dimensi Profil Pelajar Pancasila
+                4. Sarana dan Prasarana
+                5. Target Peserta Didik (Reguler, Kesulitan Belajar, Pencapaian Tinggi)
+                6. Lintas Disiplin Ilmu
+                7. Praktik Pedagogis (Strategi/teknik spesifik yang digunakan)
+                8. Kompetensi Inti:
+                    a. Tujuan Pembelajaran (sesuai CP)
+                    b. Asesmen (Diagnostik, Formatif, Sumatif - jelaskan instrumennya)
+                    c. Pemahaman Bermakna
+                    d. Pertanyaan Pemantik
+                    e. Pendahuluan (Kegiatan Pembuka)
+                    f. Kegiatan Inti (Detail langkah-langkah sesuai model pembelajaran)
+                    g. Kegiatan Penutup (Ringkasan dan tindak lanjut)
+                9. Refleksi:
+                    a. Refleksi Guru
+                    b. Refleksi Siswa
+                10. Pengayaan dan Remedial
+                11. Rubrik Penilaian (Contoh sederhana)
+                12. Glosarium (5 istilah kunci)
+                13. Daftar Pustaka (Minimal 3 sumber fiktif yang relevan)
+                    14. Lampiran:
+                    a. LKPD (Lembar Kerja Peserta Didik - jelaskan isinya)
+                    b. Bahan Bacaan Siswa (jelaskan isinya)
+                
+                Tulis semua output dalam Bahasa Indonesia, menggunakan tag Markdown untuk judul dan paragraf. Gunakan heading level 2 (##) untuk bagian utama dan heading level 3 (###) untuk sub-bagian.
+            `;
+
+            const systemPrompt = "Anda adalah Asisten AI kurikulum yang sangat profesional, ahli dalam menyusun Modul Ajar Kurikulum Merdeka yang lengkap, terstruktur, dan sesuai dengan kaidah pedagogi modern. Berikan output hanya dalam format Markdown yang diminta.";
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userPrompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+
+            const MAX_RETRIES = 3;
+            let lastResponseText = '';
+
+            for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 429 && attempt < MAX_RETRIES - 1) {
+                            const delay = Math.pow(2, attempt) * 1000;
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            continue; // Retry
+                        }
+                        throw new Error(`API returned status ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    
+                    if (text) {
+                        lastResponseText = text;
+                        successfulFetch = true;
+                        break; // Success
+                    } else {
+                        throw new Error("API response text is empty.");
+                    }
+
+                } catch (error) {
+                    console.error(`Attempt ${attempt + 1} failed:`, error);
+                    if (attempt === MAX_RETRIES - 1) {
+                        lastResponseText = "Maaf, terjadi kesalahan saat menghubungi layanan AI. Silakan coba lagi.";
+                    }
+                }
+            }
+
+            // --- Post-Generation Processing ---
+            
+            if (successfulFetch) {
+                displayStep("7. Modul Ajar berhasil dikompilasi. Memuat hasil...", false);
+            } else {
+                displayStep("7. Gagal mendapatkan respons dari server AI.", true);
+            }
+
+            // Simple Markdown to HTML conversion for display
+            let htmlContent = lastResponseText
+                .replace(/^## (.*)$/gm, '<h2 class="text-xl md:text-2xl font-extrabold mt-8 pt-4 border-t border-white/10 text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-red-300">$&</h2>')
+                .replace(/^### (.*)$/gm, '<h3 class="text-lg md:text-xl font-semibold mt-4 text-blue-200">$&</h3>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>')
+                .replace(/^<p>/, '')
+                .replace(/<\/p>$/, '');
+                
+            // Handle lists (simple conversion for display)
+            htmlContent = htmlContent.replace(/\* (.*?)(<br>|$)/g, '<li>$1</li>');
+            htmlContent = htmlContent.replace(/(<li>.*?<\/li>)/g, '<ul>$1</ul>');
+            
+            moduleOutput.innerHTML = htmlContent;
+            
+            // Finalize UI state
+            loadingIndicator.classList.add('hidden');
+            generateButton.disabled = false;
+            exportPdfButton.disabled = successfulFetch ? false : true;
+            exportDocsButton.disabled = successfulFetch ? false : true;
+            statusMessage.textContent = successfulFetch ? '✅ Modul Ajar berhasil dibuat!' : '❌ Gagal membuat modul ajar. Silakan periksa koneksi Anda.';
+            statusMessage.className = successfulFetch ? 'mt-4 text-center text-sm font-semibold text-green-400' : 'mt-4 text-center text-sm font-semibold text-red-400';
+        }
+
+        /** Simulates the export to PDF action. */
+        function simulateExport(format) {
+            if (moduleOutput.innerHTML.trim() === '' || moduleOutput.children.length === 0) {
+                 statusMessage.textContent = `⚠️ Buat Modul Ajar terlebih dahulu sebelum ${format}.`;
+                 statusMessage.className = 'mt-4 text-center text-sm font-semibold text-red-400';
+                 return;
+            }
+            
+            statusMessage.textContent = `🚀 Simulasi Export ke ${format} berhasil. (Fungsionalitas memerlukan library eksternal)`;
+            statusMessage.className = 'mt-4 text-center text-sm font-semibold text-yellow-400';
+        }
+
+        // --- Event Listeners and Initialization ---
+
+        // Initial population of selects
+        updateSelects();
+
+        // Listener for Jenjang change
+        jenjangEl.addEventListener('change', updateSelects);
+
+        // Listener for Generate Button
+        generateButton.addEventListener('click', generateModuleContent);
+
+        // Listeners for Export Buttons
+        exportPdfButton.addEventListener('click', () => simulateExport('PDF'));
+        exportDocsButton.addEventListener('click', () => simulateExport('DOCS'));
+
+        // Use a generic placeholder for the Firebase user ID on the screen if needed for context
+        window.onload = () => {
+             const authUserId = window.currentUserId || 'UID-Tidak-Tersedia';
+             console.log("App ready. Auth State (if ready):", authUserId);
+        };
+
+    </script>
+</body>
+</html>
