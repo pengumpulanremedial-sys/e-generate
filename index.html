@@ -694,7 +694,8 @@
             if (successfulFetch) {
                 // 1. Hide the spinner
                 loadingIndicator.classList.add('hidden');
-                statusMessage.textContent = 'Memuat dan menampilkan hasil penyusunan...';
+                // PERUBAHAN DI SINI: Status message yang lebih jelas saat mengetik
+                statusMessage.textContent = 'AI sedang menuliskan modul ajar di layar Anda...';
 
                 // 2. Start the typing effect on the generated HTML content
                 await typewriterEffect(moduleOutput, finalHtml);
