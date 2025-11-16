@@ -8,6 +8,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Load Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Load Libraries for Export Functionality -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
     <!-- Load Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -148,6 +153,17 @@
             min-height: 500px; /* Menjaga agar elemen output memiliki tinggi minimum */
         }
 
+        /* Gaya Khusus untuk Modul Ajar */
+        .module-content h1 {
+             /* Sama dengan h2 output section */
+            font-size: 1.75rem; 
+            font-weight: 800;
+            text-align: center;
+            margin-top: 1rem;
+            margin-bottom: 2rem;
+            color: #fff;
+        }
+
         .module-content h2 {
             font-size: 1.5rem;
             font-weight: 700;
@@ -161,7 +177,7 @@
         .module-content h3 {
             font-size: 1.25rem;
             font-weight: 600;
-            margin-top: 1rem;
+            margin-top: 1.5rem;
             margin-bottom: 0.5rem;
             color: #f87171; /* Red accent */
         }
@@ -172,20 +188,48 @@
             color: rgba(255, 255, 255, 0.9);
         }
         
-        /* Styling untuk Markdown di output */
+        /* Styling untuk Daftar (List) yang rapi */
         .module-content ul {
-            list-style-type: disc;
+            list-style-type: none; /* Hilangkan bullet default */
+            padding-left: 0;
+        }
+        .module-content li {
+            margin-bottom: 0.5rem;
             padding-left: 1.5rem;
+            position: relative;
+        }
+        .module-content li::before {
+            content: "\2022"; /* Custom bullet point */
+            color: #60a5fa; 
+            font-weight: bold;
+            display: inline-block;
+            width: 1em;
+            margin-left: -1em;
+        }
+        .module-content ol li::before {
+             content: ""; /* Hilangkan bullet custom untuk ordered list */
         }
         .module-content ol {
             list-style-type: decimal;
             padding-left: 1.5rem;
         }
-        .module-content li {
-            margin-bottom: 0.5rem;
-        }
         
-        /* Menghapus loading-indicator karena diganti dengan teks dinamis */
+        /* Gaya untuk tampilan Informasi Umum (Label: Value) */
+        .info-item {
+            display: flex;
+            margin-bottom: 0.3rem;
+            line-height: 1.4;
+        }
+        .info-label {
+            font-weight: bold;
+            width: 150px; /* Lebar tetap untuk label */
+            flex-shrink: 0;
+            color: #a5b4fc; /* light blue */
+        }
+        .info-value {
+            flex-grow: 1;
+            padding-left: 5px;
+        }
 
     </style>
 </head>
@@ -348,7 +392,7 @@
 
             <!-- Panel Output (Right/Bottom) -->
             <!-- Tambahkan fixed-min-height untuk mencegah pergeseran layout saat loading/typing -->
-            <div class="lg:col-span-2 output-section min-h-[600px] fixed-min-height">
+            <div class="lg:col-span-2 output-section min-h-[600px] fixed-min-height" id="output-container">
                 <h2 class="text-2xl font-bold text-center mb-6 text-white/90">Hasil Modul Ajar</h2>
                 <div id="module-output" class="module-content">
                     <div class="text-center text-white/70">
@@ -356,8 +400,6 @@
                         <p>Silakan isi parameter di sebelah kiri dan klik "Buat Modul Ajar AI" untuk menghasilkan draf modul ajar Anda.</p>
                     </div>
                 </div>
-                <!-- Hapus loading-indicator karena diganti dengan teks dinamis di module-output -->
-
             </div>
         </div>
     </div>
@@ -365,6 +407,9 @@
     <script>
         // Initialize Lucide Icons
         lucide.createIcons();
+        // Load jspdf UMD for compatibility
+        const { jsPDF } = window.jspdf;
+
 
         // --- Data Model for Dynamic Selects ---
         const mapData = {
@@ -375,7 +420,7 @@
                     'Pendidikan Pancasila',
                     'Bahasa Indonesia',
                     'Matematika',
-                    'IPAS (Ilmu Pengetahuan Alam dan Sosial)', // Mulai kelas 3
+                    'IPAS (Ilmu Pengetahuan Alam dan Sosial)', 
                     'Pendidikan Jasmani Olahraga dan Kesehatan (PJOK)',
                     'Seni dan Budaya'
                 ]
@@ -399,7 +444,6 @@
             'SMA/SMK/SMAN': {
                 tingkatan: [10, 11, 12],
                 mapel: [
-                    // Kelompok Umum Wajib
                     'Pendidikan Agama dan Budi Pekerti',
                     'Pendidikan Pancasila',
                     'Bahasa Indonesia',
@@ -408,7 +452,6 @@
                     'Sejarah',
                     'Pendidikan Jasmani Olahraga dan Kesehatan (PJOK)',
                     'Seni dan Budaya',
-                    // Mata Pelajaran Pilihan (MIPA/IPS/Bahasa/Vokasi)
                     'Fisika',
                     'Kimia',
                     'Biologi',
@@ -432,6 +475,7 @@
         const statusMessage = document.getElementById('status-message');
         const exportPdfButton = document.getElementById('export-pdf-button');
         const exportDocsButton = document.getElementById('export-docs-button');
+        const outputContainer = document.getElementById('output-container');
         
         // Variabel untuk mengontrol efek komposisi
         let composingInterval = null;
@@ -452,7 +496,7 @@
         
         /** Menampilkan pesan dinamis saat AI sedang menyusun kerangka (pre-typing). */
         function startComposingEffect() {
-            stopComposingEffect(); // Pastikan tidak ada interval yang berjalan
+            stopComposingEffect(); 
             
             // Mengatur konten agar tetap di tengah dan stabil
             moduleOutput.innerHTML = `
@@ -486,12 +530,9 @@
 
         /** Simulates the text generation process by displaying content word-by-word. */
         function typewriterEffect(targetElement, htmlContent) {
-            targetElement.innerHTML = ''; // Clear content for the final type
-            // Split the HTML content by words, but keep the spaces and HTML tags intact using regex grouping
+            targetElement.innerHTML = ''; 
             const words = htmlContent.split(/(\s+|<[^>]+>)/g).filter(Boolean); 
             let i = 0;
-            // Gunakan container output untuk scrolling
-            const outputContainer = document.querySelector('.output-section'); 
             
             const scrollInterval = setInterval(() => {
                 // Scroll container ke bawah saat konten bertambah
@@ -503,9 +544,8 @@
                     if (i < words.length) {
                         targetElement.innerHTML += words[i];
                         i++;
-                        // Adjust speed: fast for spaces/tags, slower for actual words
                         const isTagOrSpace = words[i-1].match(/<[^>]+>|\s+/g);
-                        const delay = isTagOrSpace ? 1 : 30; // Faster reveal for tags and spaces
+                        const delay = isTagOrSpace ? 1 : 20; 
                         requestAnimationFrame(() => setTimeout(type, delay));
                     } else {
                         clearInterval(scrollInterval);
@@ -546,7 +586,7 @@
             exportPdfButton.disabled = true;
             exportDocsButton.disabled = true;
             
-            startComposingEffect(); // Memulai efek dinamis
+            startComposingEffect(); 
             
             statusMessage.textContent = 'Menganalisis parameter dan meminta model AI...';
             statusMessage.className = 'mt-4 text-center text-sm font-semibold text-blue-400';
@@ -554,31 +594,33 @@
             let successfulFetch = false;
             let lastResponseText = '';
 
-            // PERUBAHAN PROMPT: Mengikuti struktur template PDF yang diunggah
+            // PROMPT Disesuaikan agar outputnya berupa pasangan Label: Value seperti di PDF
             const userPrompt = `
-                Buatkan kerangka Modul Ajar profesional dalam format Markdown yang KETAT mengikuti struktur berikut:
+                Anda adalah Asisten AI kurikulum. Buatkan kerangka Modul Ajar profesional dalam format Markdown yang KETAT dan HAMPIR SAMA PERSIS seperti struktur template Modul Ajar Kurikulum Merdeka yang formal.
+                
+                Struktur yang HARUS diikuti adalah:
                 
                 # MODUL AJAR (Tuliskan Topik Pembelajaran yang Sesuai)
                 
                 ## A. INFORMASI UMUM
-                | Komponen | Deskripsi |
-                |---|---|
-                | Nama Penyusun | ${penyusun} |
-                | Instansi | [Nama Sekolah Fiktif] |
-                | Fase/Kelas | [Fase yang Sesuai] / Kelas ${tingkatan} |
-                | Tahun Pelajaran | 2024/2025 |
-                | Semester | Ganjil |
-                | Mata Pelajaran | ${mapel} |
-                | Topik Pembelajaran | [Buatkan Topik Pembelajaran yang Relevan dengan CP] ${materiManual ? `(Materi Utama: ${materiManual})` : ''} |
-                | Alokasi Waktu | 4 x 45 Menit |
-                | Jumlah Pertemuan | 2 Pertemuan |
-                | Model Pembelajaran | ${model} |
-                | Metode Pembelajaran | ${metode} |
-                | Karakteristik Peserta Didik | Reguler/Tipikal |
-                | Dimensi Profil Lulusan (DPL) | ${selectedProfil} |
-                | Mitra Pembelajaran | Teman Sebaya (Diskusi Kelompok) |
-                | Lingkungan Pembelajaran | Ruang Kelas dan Perpustakaan |
-                | Pemanfaatan Digital | Proyektor, Laptop, Internet |
+                (Tuliskan setiap item dalam format Label: Value, tanpa menggunakan tabel markdown)
+                
+                * **Nama:** ${penyusun}
+                * **Instansi:** [Nama Sekolah Fiktif, contoh: SMP Negeri 7 Jakarta]
+                * **Fase/Kelas:** [Tentukan Fase yang Sesuai (A/B/C/D/E/F)] / Kelas ${tingkatan}
+                * **Tahun Pelajaran:** 2024/2025
+                * **Semester:** Ganjil
+                * **Mata Pelajaran:** ${mapel}
+                * **Topik Pembelajaran:** [Buatkan Topik Pembelajaran yang Relevan dengan CP] ${materiManual ? `(Materi Utama: ${materiManual})` : ''}
+                * **Alokasi Waktu:** 4 x 45 Menit (2 Pertemuan)
+                * **Model Pembelajaran:** ${model}
+                * **Metode Pembelajaran:** ${metode}
+                * **Karakteristik Peserta Didik:** Reguler/Tipikal
+                * **Dimensi Profil Lulusan (DPL):** ${selectedProfil}
+                * **Mitra Pembelajaran:** Teman Sebaya (Diskusi Kelompok)
+                * **Lingkungan Pembelajaran:** Ruang Kelas dan Perpustakaan
+                * **Pemanfaatan Digital:** Proyektor, Laptop, Internet
+
                 
                 ## B. KOMPONEN INTI
                 
@@ -641,7 +683,7 @@
                 [Sebutkan minimal 3 sumber fiktif yang relevan, mengikuti format penulisan daftar pustaka]
             `;
 
-            const systemPrompt = "Anda adalah Asisten AI kurikulum yang sangat profesional, ahli dalam menyusun Modul Ajar Kurikulum Merdeka yang lengkap, terstruktur, dan formal, sesuai dengan struktur template yang diminta (A. INFORMASI UMUM, B. KOMPONEN INTI, C. LAMPIRAN). Berikan output hanya dalam format Markdown yang diminta.";
+            const systemPrompt = "Anda adalah Asisten AI kurikulum yang sangat profesional, ahli dalam menyusun Modul Ajar Kurikulum Merdeka yang lengkap, terstruktur, dan formal. Berikan output hanya dalam format Markdown yang diminta.";
             // API Key Placeholder
             const apiKey = "AIzaSyC5GTgrykz8WZvdpVyioQcih-k8n71yiPE"; 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
@@ -692,104 +734,84 @@
             // 2. Stop Composing Effect
             stopComposingEffect(); 
 
-            // --- Post-Generation Processing ---
+            // --- Post-Generation Processing (HTML Conversion) ---
             
-            // Simple Markdown to HTML conversion for display
             let htmlContent = lastResponseText;
             
-            // 1. Handle Markdown Tables (for A. INFORMASI UMUM)
-            const tableRegex = /\|(.*)\|/g;
-            let tableHtml = '';
-            let isInsideTable = false;
-            
+            // 1. Convert Heading # to <h1>
+            htmlContent = htmlContent.replace(/^# (.*)$/gm, '<h1 class="text-3xl font-extrabold text-center mb-6 text-white/90">$&</h1>');
+
+            // 2. Convert Header/Info List (**Label:** Value) to custom info-item classes
+            const infoPattern = /\* \*\*([^\*]+)\*\*:(.*)/g;
             const lines = htmlContent.split('\n');
-            htmlContent = lines.map(line => {
-                if (line.trim().startsWith('|') && line.includes('|')) {
-                    if (!isInsideTable) {
-                        isInsideTable = true;
-                        // Start of the table (assuming it's a two-column list table)
-                        return '<table class="w-full text-left text-sm text-white/90 border border-white/10 rounded-lg overflow-hidden my-4"><tbody>' + line.replace(/\|/g, '<th>');
+            let finalHtml = '';
+            let inList = false;
+            let listType = '';
+
+            lines.forEach(line => {
+                const trimmedLine = line.trim();
+                const infoMatch = trimmedLine.match(/^\* \*\*([^\*]+)\*\*:(.*)/); // Match the custom info format
+                const isOrdered = trimmedLine.match(/^[0-9]+\. /);
+                const isUnordered = trimmedLine.match(/^\* /) || trimmedLine.match(/^- /);
+                
+                if (infoMatch) {
+                    // Handle Info List (A. INFORMASI UMUM)
+                    finalHtml += `<div class="info-item"><div class="info-label">${infoMatch[1].trim()}:</div><div class="info-value">${infoMatch[2].trim()}</div></div>`;
+                    
+                } else if (isOrdered || isUnordered) {
+                    // Handle regular lists (Kegiatan Inti, dll)
+                    const currentType = isOrdered ? 'ol' : 'ul';
+                    
+                    if (!inList) {
+                        listType = currentType;
+                        finalHtml += `<${listType}>`;
+                        inList = true;
+                    } else if (inList && listType !== currentType) {
+                        finalHtml += `</${listType}><${currentType}>`;
+                        listType = currentType;
                     }
                     
-                    if (line.includes('---')) {
-                        // Separator line (ignore)
-                        return '';
-                    }
-
-                    // Data row
-                    let cells = line.split('|').filter(cell => cell.trim().length > 0);
-                    if (cells.length >= 2) {
-                        return `<tr><td class="px-4 py-2 font-medium bg-white/5 w-1/3">${cells[0].trim()}</td><td class="px-4 py-2">${cells[1].trim()}</td></tr>`;
-                    }
-                    return '';
+                    let content = trimmedLine.replace(/^[0-9]+\. /, '').replace(/^\* /, '').replace(/^- /, '');
+                    // Apply bold formatting within list items
+                    content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    finalHtml += `<li>${content}</li>`;
 
                 } else {
-                    if (isInsideTable) {
-                        isInsideTable = false;
-                        return '</tbody></table>' + line;
+                    // Handle closing previous list
+                    if (inList) {
+                        finalHtml += `</${listType}>`;
+                        inList = false;
+                        listType = '';
                     }
-                    return line;
-                }
-            }).join('\n');
-            
-            // 2. Standard Markdown to HTML Conversion
-            htmlContent = htmlContent
-                .replace(/^# (.*)$/gm, '<h1 class="text-3xl font-extrabold text-center mb-6 text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-red-300">$&</h1>')
-                .replace(/^## (.*)$/gm, '<h2 class="text-xl md:text-2xl font-extrabold mt-8 pt-4 border-t border-white/10 text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-red-300">$&</h2>')
-                .replace(/^### (.*)$/gm, '<h3 class="text-lg md:text-xl font-semibold mt-4 text-red-200">$&</h3>')
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\n\n/g, '</p><p>')
-                .replace(/\n/g, '<br>')
-                .replace(/^<p>/, '')
-                .replace(/<\/p>$/, '');
-            
-            // 3. List Reconstruction (improved for Markdown lists)
-            const listPattern = /(\*|\d+\.) (.*?)($|<br>)/g;
-            let listCount = 0;
-            let isPreviousLineList = false;
-            
-            // Pre-clean: replace <br> after a list item marker with a space for parsing
-            htmlContent = htmlContent.replace(/<br>(\*|\d+\.)/g, ' $1'); 
-
-            finalHtml = htmlContent.replace(listPattern, (match, marker, content, end) => {
-                const isOrdered = marker.match(/^\d+\./);
-                const listTag = isOrdered ? 'ol' : 'ul';
-                
-                let result = '';
-                if (!isPreviousLineList) {
-                    result += `<${listTag}>`;
-                }
-                
-                result += `<li>${content}</li>`;
-                
-                // Check the next match to decide whether to close the list
-                const nextMatch = listPattern.exec(htmlContent);
-                listPattern.lastIndex = listPattern.lastIndex - match.length; // Reset index for current match logic
-                
-                if (!nextMatch || (nextMatch && nextMatch[1] !== marker)) {
-                    // Check if the next item is not a list item, or if the list type changes
-                    listPattern.lastIndex = listPattern.lastIndex + match.length; // Advance index back
-                    if (!nextMatch || nextMatch[1] !== marker) {
-                         listPattern.lastIndex = listPattern.lastIndex - match.length;
-                         isPreviousLineList = false;
-                         return result + `</${listTag}>`;
+                    
+                    // Handle Headings and Paragraphs
+                    let processedLine = line;
+                    
+                    // Convert remaining markdown (h2, h3, bold, paragraph breaks)
+                    processedLine = processedLine
+                        .replace(/^## (.*)$/gm, '<h2 class="text-xl md:text-2xl font-extrabold mt-8 pt-4 border-t border-white/10 text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-red-300">$&</h2>')
+                        .replace(/^### (.*)$/gm, '<h3 class="text-lg md:text-xl font-semibold mt-4 text-red-200">$&</h3>')
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                        
+                    // Add paragraph tags for standalone text
+                    if (processedLine.trim().length > 0 && !processedLine.match(/<h[123]>|<\/h[123]>|<table/i)) {
+                         finalHtml += `<p>${processedLine}</p>`;
+                    } else {
+                        finalHtml += processedLine;
                     }
                 }
-                
-                isPreviousLineList = true;
-                return result;
             });
-            
-            // Final cleanup for paragraphs wrapping lists
-            finalHtml = finalHtml.replace(/<p>(\s*<ul|<p>(\s*<ol))/g, '$1')
-                                 .replace(/(<\/ul>\s*)<\/p>/g, '$1')
-                                 .replace(/(<\/ol>\s*)<\/p>/g, '$1')
-                                 .replace(/<br>/g, ''); // Remove all remaining <br> tags
 
+            // Final list cleanup
+            if (inList) {
+                finalHtml += `</${listType}>`;
+            }
+            // Remove empty paragraph tags and redundant breaks
+            finalHtml = finalHtml.replace(/<p>\s*<\/p>/g, '').replace(/<br>/g, ''); 
+            
             // --- Final UI Update ---
 
             if (successfulFetch) {
-                // Status message yang lebih jelas saat mengetik
                 statusMessage.textContent = 'AI sedang menuliskan modul ajar di layar Anda...';
 
                 // 3. Start the typing effect on the generated HTML content
@@ -812,16 +834,107 @@
             }
         }
 
-        /** Simulates the export to PDF action. */
-        function simulateExport(format) {
+        /** Generates and downloads the content as a PDF using html2canvas and jspdf. */
+        function exportToPDF() {
             if (moduleOutput.innerHTML.trim() === '' || moduleOutput.children.length === 0) {
-                 statusMessage.textContent = `⚠️ Buat Modul Ajar terlebih dahulu sebelum ${format}.`;
+                 statusMessage.textContent = `⚠️ Buat Modul Ajar terlebih dahulu sebelum Export PDF.`;
                  statusMessage.className = 'mt-4 text-center text-sm font-semibold text-red-400';
                  return;
             }
-            
-            statusMessage.textContent = `🚀 Simulasi Export ke ${format} berhasil. (Fungsionalitas memerlukan library eksternal)`;
+
+            statusMessage.textContent = 'Membuat PDF... Mohon tunggu.';
             statusMessage.className = 'mt-4 text-center text-sm font-semibold text-yellow-400';
+
+            const element = document.getElementById('module-output');
+            const { jsPDF } = window.jspdf;
+
+            // Clone element to remove dark background/UI elements for clean PDF
+            const clone = element.cloneNode(true);
+            clone.style.backgroundColor = '#ffffff';
+            clone.style.color = '#000000';
+            clone.style.padding = '30px';
+            clone.style.width = '100%';
+            
+            // Apply simple print styles to the cloned content
+            clone.querySelectorAll('.module-content h1, .module-content h2, .module-content h3').forEach(el => {
+                el.style.color = '#000000';
+                el.style.borderBottom = '1px solid #ccc';
+            });
+             clone.querySelectorAll('.info-label').forEach(el => {
+                el.style.color = '#000000';
+            });
+
+            document.body.appendChild(clone);
+
+            html2canvas(clone, { scale: 2, logging: false }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                
+                const imgHeight = canvas.height * pdfWidth / canvas.width;
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+                heightLeft -= pdfHeight;
+
+                while (heightLeft >= 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+                    heightLeft -= pdfHeight;
+                }
+                
+                const filename = `Modul_Ajar_${document.getElementById('mapel').value}_Kelas_${document.getElementById('tingkatan').value}.pdf`;
+                pdf.save(filename);
+                
+                document.body.removeChild(clone);
+
+                statusMessage.textContent = `✅ Berkas ${filename} berhasil diunduh.`;
+                statusMessage.className = 'mt-4 text-center text-sm font-semibold text-green-400';
+            }).catch(error => {
+                document.body.removeChild(clone);
+                console.error("Error generating PDF:", error);
+                statusMessage.textContent = '❌ Gagal membuat PDF. Periksa konsol untuk detail.';
+                statusMessage.className = 'mt-4 text-center text-sm font-semibold text-red-400';
+            });
+        }
+
+        /** Generates and downloads the content as a simple Word document (.doc) using Data URI. */
+        function exportToDOCS() {
+            if (moduleOutput.innerHTML.trim() === '' || moduleOutput.children.length === 0) {
+                 statusMessage.textContent = `⚠️ Buat Modul Ajar terlebih dahulu sebelum Export DOCS.`;
+                 statusMessage.className = 'mt-4 text-center text-sm font-semibold text-red-400';
+                 return;
+            }
+
+            statusMessage.textContent = 'Membuat berkas DOCS...';
+            statusMessage.className = 'mt-4 text-center text-sm font-semibold text-yellow-400';
+
+            const content = document.getElementById('module-output').outerHTML;
+            
+            // Minimal styling for Word export
+            const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Document</title><style>body{font-family:'Inter', sans-serif;} h1, h2, h3 { color: #000 !important; } .info-label { font-weight: bold; width: 150px; flex-shrink: 0; color: #000; } .module-content { width: 600px; margin: auto; color: #000; background: #fff; padding: 20px; } </style></head><body>";
+            const footer = "</body></html>";
+            const html = header + content + footer;
+
+            const filename = `Modul_Ajar_${document.getElementById('mapel').value}_Kelas_${document.getElementById('tingkatan').value}.doc`;
+
+            const blob = new Blob(['\ufeff', html], {
+                type: 'application/msword'
+            });
+
+            // Create download link and trigger click
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            statusMessage.textContent = `✅ Berkas ${filename} berhasil diunduh.`;
+            statusMessage.className = 'mt-4 text-center text-sm font-semibold text-green-400';
         }
 
         // --- Event Listeners and Initialization ---
@@ -835,9 +948,9 @@
         // Listener for Generate Button
         generateButton.addEventListener('click', generateModuleContent);
 
-        // Listeners for Export Buttons
-        exportPdfButton.addEventListener('click', () => simulateExport('PDF'));
-        exportDocsButton.addEventListener('click', () => simulateExport('DOCS'));
+        // Listeners for Export Buttons (Updated to use functional code)
+        exportPdfButton.addEventListener('click', exportToPDF);
+        exportDocsButton.addEventListener('click', exportToDOCS);
 
         // Use a generic placeholder for the Firebase user ID on the screen if needed for context
         window.onload = () => {
