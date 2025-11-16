@@ -166,6 +166,20 @@
             margin-bottom: 1rem;
             color: rgba(255, 255, 255, 0.9);
         }
+        
+        /* Styling untuk Markdown di output */
+        .module-content ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+        }
+        .module-content ol {
+            list-style-type: decimal;
+            padding-left: 1.5rem;
+        }
+        .module-content li {
+            margin-bottom: 0.5rem;
+        }
+
 
         .loading-indicator {
             display: flex;
@@ -187,15 +201,6 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
-        }
-
-        .step-log p {
-            padding: 0.5rem;
-            border-radius: 0.375rem;
-            font-family: monospace;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
     </style>
 </head>
@@ -222,7 +227,7 @@
                 <!-- 2. Tombol Pilihan Jenjang -->
                 <div class="input-group">
                     <label for="jenjang" class="block text-sm font-medium mb-1 text-white/80 flex items-center">
-                         <i data-lucide="graduation-cap" class="w-4 h-4 mr-2 text-blue-400"></i> Jenjang Pendidikan
+                           <i data-lucide="graduation-cap" class="w-4 h-4 mr-2 text-blue-400"></i> Jenjang Pendidikan
                     </label>
                     <select id="jenjang" class="custom-select">
                         <option value="SD/MI">SD/MI</option>
@@ -370,16 +375,7 @@
                     <span class="ml-3 text-lg font-medium">AI sedang menyusun modul...</span>
                 </div>
 
-                <!-- NEW: Area Step-by-Step Generation -->
-                <div class="mt-8 pt-6 border-t border-white/10">
-                    <h3 class="text-xl font-bold mb-4 text-white/90 flex items-center">
-                        <i data-lucide="workflow" class="w-5 h-5 mr-2 text-red-400"></i> Log Proses Penyusunan
-                    </h3>
-                    <div id="step-by-step-output" class="step-log p-4 bg-white/5 rounded-lg text-sm space-y-2 max-h-60 overflow-y-auto">
-                        <p id="step-initial" class="text-white/50 italic">Log proses akan muncul di sini setelah Anda memulai generasi.</p>
-                    </div>
-                </div>
-                <!-- END NEW AREA -->
+                <!-- Log Proses Penyusunan Dihapus Sesuai Permintaan -->
             </div>
         </div>
     </div>
@@ -455,7 +451,6 @@
         const statusMessage = document.getElementById('status-message');
         const exportPdfButton = document.getElementById('export-pdf-button');
         const exportDocsButton = document.getElementById('export-docs-button');
-        const stepOutputEl = document.getElementById('step-by-step-output'); // NEW ELEMENT
 
         // --- Utility Functions ---
 
@@ -471,22 +466,7 @@
             mapelEl.innerHTML = data.mapel.map(m => `<option value="${m}">${m}</option>`).join('');
         }
         
-        // NEW FUNCTION: Displays a step in the log
-        function displayStep(stepText, isError = false) {
-            const icon = isError ? '❌' : '✅';
-            const colorClass = isError ? 'text-red-400 bg-red-900/20' : 'text-blue-400 bg-blue-900/20';
-            
-            const newStep = document.createElement('p');
-            newStep.className = `${colorClass} flex items-center transition duration-300`;
-            newStep.innerHTML = `<span class="mr-2 font-bold">${icon}</span> ${stepText}`;
-            stepOutputEl.appendChild(newStep);
-            
-            // Scroll to bottom of log
-            stepOutputEl.scrollTop = stepOutputEl.scrollHeight;
-        }
-
-
-        /** Handles the Gemini API call to generate module content. */
+        // Fungsi generateModuleContent disederhanakan tanpa simulasi step
         async function generateModuleContent() {
             // Get input values
             const penyusun = document.getElementById('penyusun').value.trim() || 'Guru Profesional';
@@ -501,8 +481,8 @@
             // Get selected profil lulusan
             const selectedProfilElements = document.querySelectorAll('input[name="profil-lulusan"]:checked');
             const selectedProfil = Array.from(selectedProfilElements)
-                                      .map(checkbox => checkbox.value)
-                                      .join(', ');
+                                            .map(checkbox => checkbox.value)
+                                            .join(', ');
 
             if (!cp) {
                 statusMessage.textContent = '❗ Capaian Pembelajaran harus diisi.';
@@ -510,35 +490,17 @@
                 return;
             }
 
-            // Prepare for API call
+            // Prepare UI state for API call
             generateButton.disabled = true;
             exportPdfButton.disabled = true;
             exportDocsButton.disabled = true;
             loadingIndicator.classList.remove('hidden');
             moduleOutput.innerHTML = '';
-            statusMessage.textContent = 'Meminta AI untuk menyusun modul ajar...';
+            statusMessage.textContent = 'AI sedang menyusun modul ajar secara profesional...';
             statusMessage.className = 'mt-4 text-center text-sm font-semibold text-blue-400';
             
-            stepOutputEl.innerHTML = ''; // Clear previous steps
-            const generationSteps = [
-                "1. Validasi Input dan Parameter Kurikulum...",
-                "2. Merumuskan Tujuan Pembelajaran dan Asesmen Awal...",
-                "3. Mendesain Kerangka Kegiatan Inti (Praktek Pedagogis)...",
-                "4. Menyusun Komponen Pelengkap (Refleksi, Glosarium, Daftar Pustaka)...",
-                "5. Optimasi Struktur Modul Ajar dan Konversi Format...",
-            ];
-            
             let successfulFetch = false;
-
-            // --- Step-by-Step Simulation and Fetch ---
-            for (let i = 0; i < generationSteps.length; i++) {
-                displayStep(generationSteps[i]);
-                await new Promise(resolve => setTimeout(resolve, 300 + (Math.random() * 500))); // Dynamic delay
-            }
-            
-            displayStep("6. Mengirim permintaan ke Model AI Gemini...", false); // Not an error, but still loading
-            await new Promise(resolve => setTimeout(resolve, 500)); 
-
+            let lastResponseText = '';
 
             const userPrompt = `
                 Buatkan kerangka Modul Ajar profesional dalam format Markdown berdasarkan data berikut:
@@ -582,7 +544,8 @@
             `;
 
             const systemPrompt = "Anda adalah Asisten AI kurikulum yang sangat profesional, ahli dalam menyusun Modul Ajar Kurikulum Merdeka yang lengkap, terstruktur, dan sesuai dengan kaidah pedagogi modern. Berikan output hanya dalam format Markdown yang diminta.";
-            const apiKey = "AIzaSyC5GTgrykz8WZvdpVyioQcih-k8n71yiPE"; 
+            // API Key Placeholder
+            const apiKey = ""; 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
             const payload = {
@@ -591,7 +554,6 @@
             };
 
             const MAX_RETRIES = 3;
-            let lastResponseText = '';
 
             for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
                 try {
@@ -631,12 +593,6 @@
 
             // --- Post-Generation Processing ---
             
-            if (successfulFetch) {
-                displayStep("7. Modul Ajar berhasil dikompilasi. Memuat hasil...", false);
-            } else {
-                displayStep("7. Gagal mendapatkan respons dari server AI.", true);
-            }
-
             // Simple Markdown to HTML conversion for display
             let htmlContent = lastResponseText
                 .replace(/^## (.*)$/gm, '<h2 class="text-xl md:text-2xl font-extrabold mt-8 pt-4 border-t border-white/10 text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-red-300">$&</h2>')
@@ -648,10 +604,49 @@
                 .replace(/<\/p>$/, '');
                 
             // Handle lists (simple conversion for display)
-            htmlContent = htmlContent.replace(/\* (.*?)(<br>|$)/g, '<li>$1</li>');
-            htmlContent = htmlContent.replace(/(<li>.*?<\/li>)/g, '<ul>$1</ul>');
+            // Replace standalone <br> after list items with proper list structure
+            htmlContent = htmlContent.replace(/<br>\* /g, '<ul><li>') // Start of first list item
+                                      .replace(/\* (.*?)(<br>|$)/g, '<li>$1</li>') // subsequent items
+                                      .replace(/<\/li><br>/g, '</li>'); // cleanup
             
-            moduleOutput.innerHTML = htmlContent;
+            // Basic list reconstruction (imperfect but better than nothing)
+            const lines = htmlContent.split('<br>');
+            let finalHtml = '';
+            let inList = false;
+            
+            lines.forEach(line => {
+                const trimmedLine = line.trim();
+                if (trimmedLine.startsWith('<li>') || trimmedLine.startsWith('<ol><li>') || trimmedLine.startsWith('<ul><li>')) {
+                    if (!inList) {
+                        // Determine list type if needed, but for simplicity, we'll assume it's just content blocks
+                        inList = true;
+                        if (trimmedLine.match(/^\d+\./)) {
+                            finalHtml += '<ol>';
+                        } else if (trimmedLine.startsWith('<li>')) {
+                            finalHtml += '<ul>';
+                        }
+                    }
+                    finalHtml += trimmedLine.replace(/^- /g, '').replace(/<ol>|<\/ol>|<ul>|<\/ul>/g, '');
+                } else {
+                    if (inList) {
+                        finalHtml += (finalHtml.endsWith('</ol>') ? '' : '</ol>') + (finalHtml.endsWith('</ul>') ? '' : '</ul>');
+                        inList = false;
+                    }
+                    if (trimmedLine.startsWith('<p>')) {
+                        finalHtml += trimmedLine;
+                    } else {
+                        finalHtml += `<p>${trimmedLine}</p>`;
+                    }
+                }
+            });
+
+            // Clean up empty list tags if they exist and ensure proper closing
+            if (inList) {
+                finalHtml += (finalHtml.endsWith('</ol>') ? '' : '</ol>') + (finalHtml.endsWith('</ul>') ? '' : '</ul>');
+            }
+            finalHtml = finalHtml.replace(/<p><\/p>/g, '');
+            
+            moduleOutput.innerHTML = finalHtml;
             
             // Finalize UI state
             loadingIndicator.classList.add('hidden');
