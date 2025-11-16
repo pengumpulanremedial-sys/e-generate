@@ -466,7 +466,36 @@
             mapelEl.innerHTML = data.mapel.map(m => `<option value="${m}">${m}</option>`).join('');
         }
         
-        // Fungsi generateModuleContent disederhanakan tanpa simulasi step
+        /** Simulates the text generation process by displaying content word-by-word. */
+        function typewriterEffect(targetElement, htmlContent) {
+            targetElement.innerHTML = ''; // Clear content
+            // Split the HTML content by words, but keep the spaces and HTML tags intact using regex grouping
+            const words = htmlContent.split(/(\s+|<[^>]+>)/g).filter(Boolean); 
+            let i = 0;
+            const scrollInterval = setInterval(() => {
+                targetElement.scrollTop = targetElement.scrollHeight; // Auto-scroll
+            }, 50);
+
+            return new Promise(resolve => {
+                function type() {
+                    if (i < words.length) {
+                        targetElement.innerHTML += words[i];
+                        i++;
+                        // Adjust speed: fast for spaces/tags, slower for actual words
+                        const isTagOrSpace = words[i-1].match(/<[^>]+>|\s+/g);
+                        const delay = isTagOrSpace ? 1 : 30; // Faster reveal for tags and spaces
+                        requestAnimationFrame(() => setTimeout(type, delay));
+                    } else {
+                        clearInterval(scrollInterval);
+                        resolve();
+                    }
+                }
+                type();
+            });
+        }
+
+
+        /** Handles the Gemini API call to generate module content. */
         async function generateModuleContent() {
             // Get input values
             const penyusun = document.getElementById('penyusun').value.trim() || 'Guru Profesional';
@@ -616,45 +645,76 @@
             
             lines.forEach(line => {
                 const trimmedLine = line.trim();
-                if (trimmedLine.startsWith('<li>') || trimmedLine.startsWith('<ol><li>') || trimmedLine.startsWith('<ul><li>')) {
-                    if (!inList) {
-                        // Determine list type if needed, but for simplicity, we'll assume it's just content blocks
-                        inList = true;
-                        if (trimmedLine.match(/^\d+\./)) {
-                            finalHtml += '<ol>';
-                        } else if (trimmedLine.startsWith('<li>')) {
-                            finalHtml += '<ul>';
+                // Check if it looks like a list item (li tags or starting with -)
+                if (trimmedLine.startsWith('<li>') || trimmedLine.startsWith('<ol><li>') || trimmedLine.startsWith('<ul><li>') || trimmedLine.startsWith('- ')) {
+                    const isListItem = trimmedLine.startsWith('<li>') || trimmedLine.startsWith('- ');
+                    const isOrdered = trimmedLine.match(/^\d+\./);
+
+                    if (isListItem || isOrdered) {
+                         if (!inList) {
+                            inList = isOrdered ? '<ol>' : '<ul>';
+                            finalHtml += inList;
                         }
+                        // Simple cleaning before appending to list
+                        let listItemText = trimmedLine.replace(/^- /, '<li>').replace(/<\/?ul>|<\/?ol>|<li>|<\/li>/g, '').trim();
+
+                        // If it's a paragraph from previous replacements, remove it
+                        if (listItemText.startsWith('<p>') && listItemText.endsWith('</p>')) {
+                            listItemText = listItemText.slice(3, -4);
+                        }
+
+                        // Re-add <li> tag if it was removed in previous step (imperfect cleanup)
+                        if (!listItemText.startsWith('<li>')) {
+                           listItemText = `<li>${listItemText}</li>`;
+                        }
+
+                        finalHtml += listItemText;
                     }
-                    finalHtml += trimmedLine.replace(/^- /g, '').replace(/<ol>|<\/ol>|<ul>|<\/ul>/g, '');
                 } else {
                     if (inList) {
-                        finalHtml += (finalHtml.endsWith('</ol>') ? '' : '</ol>') + (finalHtml.endsWith('</ul>') ? '' : '</ul>');
+                        finalHtml += (inList === '<ol>' ? '</ol>' : '</ul>');
                         inList = false;
                     }
-                    if (trimmedLine.startsWith('<p>')) {
-                        finalHtml += trimmedLine;
-                    } else {
-                        finalHtml += `<p>${trimmedLine}</p>`;
+                    if (trimmedLine.length > 0) {
+                        // Ensure paragraphs are wrapped
+                        finalHtml += trimmedLine.startsWith('<p>') ? trimmedLine : `<p>${trimmedLine}</p>`;
                     }
                 }
             });
 
-            // Clean up empty list tags if they exist and ensure proper closing
+            // Final list cleanup
             if (inList) {
-                finalHtml += (finalHtml.endsWith('</ol>') ? '' : '</ol>') + (finalHtml.endsWith('</ul>') ? '' : '</ul>');
+                finalHtml += (inList === '<ol>' ? '</ol>' : '</ul>');
             }
             finalHtml = finalHtml.replace(/<p><\/p>/g, '');
             
-            moduleOutput.innerHTML = finalHtml;
-            
-            // Finalize UI state
-            loadingIndicator.classList.add('hidden');
-            generateButton.disabled = false;
-            exportPdfButton.disabled = successfulFetch ? false : true;
-            exportDocsButton.disabled = successfulFetch ? false : true;
-            statusMessage.textContent = successfulFetch ? '✅ Modul Ajar berhasil dibuat!' : '❌ Gagal membuat modul ajar. Silakan periksa koneksi Anda.';
-            statusMessage.className = successfulFetch ? 'mt-4 text-center text-sm font-semibold text-green-400' : 'mt-4 text-center text-sm font-semibold text-red-400';
+
+            // --- Final UI Update ---
+
+            if (successfulFetch) {
+                // 1. Hide the spinner
+                loadingIndicator.classList.add('hidden');
+                statusMessage.textContent = 'Memuat dan menampilkan hasil penyusunan...';
+
+                // 2. Start the typing effect on the generated HTML content
+                await typewriterEffect(moduleOutput, finalHtml);
+
+                // 3. Finalize UI after typing is complete
+                generateButton.disabled = false;
+                exportPdfButton.disabled = false;
+                exportDocsButton.disabled = false;
+                statusMessage.textContent = '✅ Modul Ajar berhasil dibuat!';
+                statusMessage.className = 'mt-4 text-center text-sm font-semibold text-green-400';
+            } else {
+                // Handle failure immediately
+                loadingIndicator.classList.add('hidden');
+                generateButton.disabled = false;
+                exportPdfButton.disabled = true;
+                exportDocsButton.disabled = true;
+                moduleOutput.innerHTML = `<p class="text-red-400 font-medium">${lastResponseText}</p>`;
+                statusMessage.textContent = '❌ Gagal membuat modul ajar. Silakan periksa koneksi Anda.';
+                statusMessage.className = 'mt-4 text-center text-sm font-semibold text-red-400';
+            }
         }
 
         /** Simulates the export to PDF action. */
@@ -693,4 +753,3 @@
     </script>
 </body>
 </html>
-
